@@ -1,5 +1,7 @@
 # Resume Shortlister
 
+**[▶ Live demo](https://purvee25.github.io/resume-shortlister/)** — runs entirely in your browser; resume files never leave your machine.
+
 Upload a batch of resumes, define the role's criteria, and get a ranked
 shortlist with an auditable reason for every decision.
 
