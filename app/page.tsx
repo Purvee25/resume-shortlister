@@ -6,6 +6,7 @@ import CriteriaForm from "@/components/CriteriaForm";
 import ResultsView from "@/components/ResultsView";
 import UploadZone from "@/components/UploadZone";
 import { DEFAULT_COMPANY, DEFAULT_CRITERIA } from "@/lib/defaults";
+import { scoreResumes } from "@/lib/score";
 import type { ExtractedResume } from "@/lib/textract";
 import type { CompanyProfile, JobCriteria, ShortlistResponse } from "@/lib/types";
 
@@ -50,17 +51,15 @@ export default function HomePage() {
     setRunning(true);
     setError(null);
     try {
-      const response = await fetch("/api/shortlist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ company, criteria, resumes }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data?.error ?? `Scoring failed (${response.status})`);
+      if (criteria.reviewThreshold > criteria.shortlistThreshold) {
+        throw new Error("Review threshold cannot be higher than the shortlist threshold.");
       }
-      setReport(data as ShortlistResponse);
+
+      // Scoring is a pure function over already-extracted text, so it runs in the
+      // browser. Nothing leaves the machine, and the app deploys as a static site.
+      // The /api/shortlist route stays available for programmatic callers.
+      const data = scoreResumes(company, criteria, resumes);
+      setReport(data);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Something went wrong.");
