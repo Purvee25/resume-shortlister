@@ -42,6 +42,23 @@ export default function HomePage() {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ company, criteria }));
   }, [company, criteria]);
 
+  // Results are a view of this page, not a route. Push a history entry when
+  // they open so the browser Back button returns to the form instead of
+  // leaving the site.
+  useEffect(() => {
+    const onPopState = () => setReport(null);
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  const goBack = () => {
+    if (window.history.state?.view === "results") {
+      window.history.back(); // popstate clears the report
+    } else {
+      setReport(null);
+    }
+  };
+
   const missing: string[] = [];
   if (!company.name.trim()) missing.push("company name");
   if (!criteria.title.trim()) missing.push("role title");
@@ -60,6 +77,9 @@ export default function HomePage() {
       // The /api/shortlist route stays available for programmatic callers.
       const data = scoreResumes(company, criteria, resumes);
       setReport(data);
+      if (window.history.state?.view !== "results") {
+        window.history.pushState({ ...window.history.state, view: "results" }, "");
+      }
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Something went wrong.");
@@ -84,7 +104,7 @@ export default function HomePage() {
       </header>
 
       {report ? (
-        <ResultsView report={report} onBack={() => setReport(null)} />
+        <ResultsView report={report} onBack={goBack} />
       ) : (
         <div className="space-y-6">
           <CompanyForm value={company} onChange={setCompany} />

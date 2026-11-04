@@ -146,7 +146,7 @@ export default function ResultsView({ report, onBack }: Props) {
               onClick={onBack}
               className="rounded-lg border border-ink-300 px-3 py-2 text-sm text-ink-700 hover:bg-ink-50"
             >
-              Edit criteria
+              ← Back to criteria
             </button>
             <button
               type="button"
