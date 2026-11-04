@@ -29,6 +29,12 @@ import { buildIdf, cosineSimilarity, tfidfVector, tokenize } from "./text";
 /** Similarity above this counts as a full match; raw cosine on short JDs stays low. */
 const SIMILARITY_CEILING = 0.35;
 
+/**
+ * Typical one-page resumes run 250+ words. Well below that usually means
+ * extraction lost content (multi-column layouts, text in images, a bad scan).
+ */
+const MIN_EXPECTED_WORDS = 60;
+
 function ratio(matched: number, total: number): number {
   return total === 0 ? 1 : matched / total;
 }
@@ -160,8 +166,13 @@ function buildReasons(
     );
   }
 
-  if (result.wordCount < 80) {
-    reasons.push("Very little text extracted — the file may be a scan or image-only PDF");
+  if (result.ocr) {
+    reasons.push("Read from a scanned image with OCR — verify names, numbers and skills");
+  }
+  if (result.wordCount < MIN_EXPECTED_WORDS) {
+    reasons.push(
+      `Only ${result.wordCount} words extracted — the resume may be incomplete; check the original file`,
+    );
   }
 
   return reasons;
@@ -185,6 +196,7 @@ export function scoreResumes(
     : new Map<string, number>();
 
   const requiredRank = educationRank(criteria.minEducation);
+  const weights = activeWeights(criteria, hasDescription);
 
   const results: CandidateResult[] = resumes.map((resume, index) => {
     const { text, fileName } = resume;
@@ -214,7 +226,7 @@ export function scoreResumes(
       jdSimilarity: similarity,
     };
 
-    const score = weightedTotal(subScores, activeWeights(criteria, hasDescription));
+    const score = weightedTotal(subScores, weights);
     const partial: Omit<CandidateResult, "reasons"> = {
       id: `${index}-${fileName}`,
       fileName,
@@ -231,6 +243,7 @@ export function scoreResumes(
       score,
       decision: decide(score, criteria, required.missing),
       wordCount: tokens.length,
+      ocr: resume.ocr ?? false,
     };
 
     return { ...partial, reasons: buildReasons(partial, criteria) };
@@ -246,6 +259,7 @@ export function scoreResumes(
     criteria,
     generatedAt: now.toISOString(),
     totals,
+    activeWeights: weights,
     results,
   };
 }

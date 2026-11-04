@@ -7,6 +7,8 @@ import {
   type CandidateResult,
   type Decision,
   type ShortlistResponse,
+  type SubScores,
+  type Weights,
 } from "@/lib/types";
 
 interface Props {
@@ -36,15 +38,31 @@ function ScoreBar({ value }: { value: number }) {
   );
 }
 
+const SUB_SCORE_LABELS: Record<keyof SubScores, string> = {
+  requiredSkills: "Required skills",
+  preferredSkills: "Preferred skills",
+  experience: "Experience",
+  education: "Education",
+  jdSimilarity: "JD similarity",
+};
+
 function CandidateRow({
   result,
   rank,
   anonymised,
+  weights,
 }: {
   result: CandidateResult;
   rank: number;
   anonymised: boolean;
+  weights: Weights;
 }) {
+  // Only criteria the recruiter actually set count toward the score; showing
+  // the others (which would read 100%) suggests credit that was never given.
+  const totalWeight = Object.values(weights).reduce((sum, weight) => sum + weight, 0);
+  const counted = (Object.keys(SUB_SCORE_LABELS) as Array<keyof SubScores>).filter(
+    (key) => weights[key] > 0,
+  );
   const [open, setOpen] = useState(false);
   const style = DECISION_STYLES[result.decision];
   const displayName = anonymised
@@ -98,14 +116,21 @@ function CandidateRow({
               <li key={reason}>{reason}</li>
             ))}
           </ul>
-          <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-ink-600 sm:grid-cols-5">
-            {Object.entries(result.subScores).map(([key, value]) => (
-              <div key={key}>
-                <dt className="text-ink-400">{key}</dt>
-                <dd className="tabular-nums">{Math.round(value * 100)}%</dd>
-              </div>
-            ))}
-          </dl>
+          {counted.length > 0 && (
+            <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-ink-600 sm:grid-cols-5">
+              {counted.map((key) => (
+                <div key={key}>
+                  <dt className="text-ink-400">
+                    {SUB_SCORE_LABELS[key]}{" "}
+                    <span className="text-ink-300">
+                      ({Math.round((weights[key] / totalWeight) * 100)}% of score)
+                    </span>
+                  </dt>
+                  <dd className="tabular-nums">{Math.round(result.subScores[key] * 100)}%</dd>
+                </div>
+              ))}
+            </dl>
+          )}
           {!anonymised && result.links.length > 0 && (
             <p className="mt-3 break-all text-xs text-ink-500">{result.links.join(" · ")}</p>
           )}
@@ -211,6 +236,7 @@ export default function ResultsView({ report, onBack }: Props) {
                 result={result}
                 rank={report.results.indexOf(result) + 1}
                 anonymised={anonymised}
+                weights={report.activeWeights}
               />
             ))}
           </ul>
