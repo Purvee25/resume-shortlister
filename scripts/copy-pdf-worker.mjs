@@ -41,7 +41,37 @@ async function main() {
   console.log(`[copy-pdf-worker] ${path.basename(source)} -> public/pdf.worker.min.mjs`);
 }
 
-main().catch((error) => {
-  console.error("[copy-pdf-worker] failed:", error);
-  process.exitCode = 1;
-});
+/**
+ * OCR assets for scanned resumes. Self-hosted for the same reason as the pdf.js
+ * worker: Tesseract.js otherwise fetches its worker, WASM core and language
+ * model from a CDN at runtime.
+ */
+const TESSERACT_ASSETS = [
+  ["tesseract.js/dist/worker.min.js", "tesseract/worker.min.js"],
+  ["tesseract.js-core/tesseract-core-lstm.wasm.js", "tesseract/core/tesseract-core-lstm.wasm.js"],
+  ["tesseract.js-core/tesseract-core-simd-lstm.wasm.js", "tesseract/core/tesseract-core-simd-lstm.wasm.js"],
+  ["@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz", "tesseract/lang/eng.traineddata.gz"],
+];
+
+async function copyTesseractAssets() {
+  for (const [specifier, relativeTarget] of TESSERACT_ASSETS) {
+    let source;
+    try {
+      source = require.resolve(specifier);
+    } catch {
+      console.warn(`[copy-assets] ${specifier} not found; OCR will be unavailable.`);
+      continue;
+    }
+    const target = path.join(process.cwd(), "public", relativeTarget);
+    await mkdir(path.dirname(target), { recursive: true });
+    await copyFile(source, target);
+  }
+  console.log("[copy-assets] tesseract worker, core and eng model -> public/tesseract/");
+}
+
+main()
+  .then(copyTesseractAssets)
+  .catch((error) => {
+    console.error("[copy-assets] failed:", error);
+    process.exitCode = 1;
+  });

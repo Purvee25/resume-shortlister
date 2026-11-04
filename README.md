@@ -12,7 +12,10 @@ recruiter can inspect and overrule any result.
 ## How it works
 
 Resumes are parsed **in the browser** (`pdfjs-dist` for PDFs, `mammoth` for
-`.docx`), so the files themselves never leave the machine. Only extracted text
+`.docx`), so the files themselves never leave the machine. Scanned (image-only)
+PDFs and PNG/JPG photos of resumes are read with OCR via `tesseract.js`, also
+in the browser; its worker, WASM core and English model are self-hosted, so no
+CDN is contacted. OCR'd files are tagged so recruiters know to double-check them. Only extracted text
 is posted to `/api/shortlist`, which validates with zod, scores, and returns the
 ranking.
 
@@ -42,13 +45,13 @@ lib/
 ├── score.ts                 # weights -> sub-scores -> decision
 ├── csv.ts                   # shortlist export
 ├── textract.ts · defaults.ts · types.ts
-scripts/copy-pdf-worker.mjs  # runs on postinstall
+scripts/copy-pdf-worker.mjs  # postinstall: copies pdf.js + OCR assets to public/
 ```
 
 ## Stack
 
 Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS v4 · zod ·
-pdfjs-dist · mammoth
+pdfjs-dist · mammoth · tesseract.js
 
 ## Running it
 

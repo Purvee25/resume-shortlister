@@ -22,6 +22,7 @@ export default function UploadZone({ resumes, onChange }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState("Extracting text…");
   const [errors, setErrors] = useState<FileError[]>([]);
 
   const ingest = useCallback(
@@ -34,8 +35,9 @@ export default function UploadZone({ resumes, onChange }: Props) {
       const failed: FileError[] = [];
 
       for (const file of Array.from(files)) {
+        setStatus(`Extracting text from ${file.name}…`);
         try {
-          accepted.push(await extractText(file));
+          accepted.push(await extractText(file, setStatus));
         } catch (error) {
           failed.push({
             fileName: file.name,
@@ -119,7 +121,11 @@ export default function UploadZone({ resumes, onChange }: Props) {
         />
       </div>
 
-      {busy && <p className="mt-3 text-sm text-ink-500">Extracting text…</p>}
+      {busy && (
+        <p className="mt-3 text-sm text-ink-500" role="status" aria-live="polite">
+          {status}
+        </p>
+      )}
 
       {errors.length > 0 && (
         <ul className="mt-3 space-y-1 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
@@ -140,6 +146,14 @@ export default function UploadZone({ resumes, onChange }: Props) {
             >
               <span className="truncate text-ink-800">{resume.fileName}</span>
               <span className="flex items-center gap-3 shrink-0">
+                {resume.ocr && (
+                  <span
+                    className="rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-xs text-amber-800"
+                    title="Read from a scanned image with OCR — check details before relying on them"
+                  >
+                    OCR
+                  </span>
+                )}
                 <span className="text-xs text-ink-400">
                   {resume.text.split(/\s+/).length} words
                 </span>
