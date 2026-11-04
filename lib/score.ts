@@ -72,6 +72,26 @@ function weightedTotal(sub: SubScores, weights: Weights): number {
   return Math.round((raw / totalWeight) * 1000) / 10;
 }
 
+/**
+ * Zero out the weight of any criterion the recruiter left unset. Otherwise an
+ * unset criterion hands every candidate free full marks, which inflates
+ * scores: a resume matching none of the required skills could still clear
+ * the review threshold on the strength of criteria nobody asked for.
+ */
+export function activeWeights(criteria: JobCriteria, hasDescription: boolean): Weights {
+  const { weights } = criteria;
+  return {
+    requiredSkills: criteria.requiredSkills.length > 0 ? weights.requiredSkills : 0,
+    preferredSkills: criteria.preferredSkills.length > 0 ? weights.preferredSkills : 0,
+    experience:
+      criteria.minExperienceYears > 0 || criteria.idealExperienceYears > 0
+        ? weights.experience
+        : 0,
+    education: criteria.minEducation !== "none" ? weights.education : 0,
+    jdSimilarity: hasDescription ? weights.jdSimilarity : 0,
+  };
+}
+
 function decide(
   score: number,
   criteria: JobCriteria,
@@ -90,6 +110,13 @@ function buildReasons(
   criteria: JobCriteria,
 ): string[] {
   const reasons: string[] = [];
+
+  const active = activeWeights(criteria, tokenize(criteria.description).length > 0);
+  if (Object.values(active).every((weight) => weight === 0)) {
+    reasons.push(
+      "No scoring criteria set — add skills, experience, education or a job description (with a non-zero weight)",
+    );
+  }
 
   if (criteria.requiredSkills.length > 0) {
     reasons.push(
@@ -187,13 +214,7 @@ export function scoreResumes(
       jdSimilarity: similarity,
     };
 
-    // Drop the similarity term entirely when no JD was supplied, rather than
-    // scoring every candidate 0 on a criterion the recruiter never set.
-    const effectiveWeights: Weights = hasDescription
-      ? criteria.weights
-      : { ...criteria.weights, jdSimilarity: 0 };
-
-    const score = weightedTotal(subScores, effectiveWeights);
+    const score = weightedTotal(subScores, activeWeights(criteria, hasDescription));
     const partial: Omit<CandidateResult, "reasons"> = {
       id: `${index}-${fileName}`,
       fileName,

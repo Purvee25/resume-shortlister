@@ -1,9 +1,11 @@
 /** Heuristic field extraction from plain resume text. */
+import { skillAliases } from "./synonyms";
 import { EDUCATION_LEVELS, type EducationLevel } from "./types";
 import { containsPhrase, normalize } from "./text";
 
 const EMAIL_RE = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
-const PHONE_RE = /(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}\b/;
+/** A run of digits with common separators; validated by digit count in extractPhone. */
+const PHONE_RE = /(?<![\w+])\+?\(?\d[\d\s().-]{6,}\d(?!\w)/g;
 const LINK_RE = /(?:https?:\/\/)?(?:www\.)?(?:linkedin\.com|github\.com|gitlab\.com|kaggle\.com)\/[^\s,;()<>"']+/gi;
 
 /** Common non-name lines that sit at the top of a resume. */
@@ -41,7 +43,14 @@ export function extractEmail(text: string): string | null {
 }
 
 export function extractPhone(text: string): string | null {
-  return text.match(PHONE_RE)?.[0].trim() ?? null;
+  // 10–15 digits covers national and international numbers (US 3-3-4,
+  // India 5-5, UK, etc.) while skipping year ranges like "2016 - 2021".
+  for (const match of text.matchAll(PHONE_RE)) {
+    const candidate = match[0].trim();
+    const digits = candidate.replace(/\D/g, "").length;
+    if (digits >= 10 && digits <= 15) return candidate;
+  }
+  return null;
 }
 
 export function extractLinks(text: string): string[] {
@@ -177,7 +186,8 @@ export function findSkills(text: string, skills: string[]): { matched: string[];
   const matched: string[] = [];
   const missing: string[] = [];
   for (const skill of skills) {
-    (containsPhrase(haystack, skill) ? matched : missing).push(skill);
+    const found = skillAliases(skill).some((alias) => containsPhrase(haystack, alias));
+    (found ? matched : missing).push(skill);
   }
   return { matched, missing };
 }

@@ -25,6 +25,8 @@ jobs:
           cache: npm
       - uses: actions/configure-pages@v5
       - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm test
       - run: npm run build
         env:
           STATIC_EXPORT: "true"

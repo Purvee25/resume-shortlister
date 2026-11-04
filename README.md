@@ -57,7 +57,8 @@ npm install
 npm run dev
 ```
 
-Opens on `http://localhost:3000`. `npm install` also copies the PDF.js worker
+Run the unit tests with `npm test` (Vitest; covers extraction, skill synonyms
+and scoring). Opens on `http://localhost:3000`. `npm install` also copies the PDF.js worker
 into `public/` via the `postinstall` script.
 
 ## Configuration
