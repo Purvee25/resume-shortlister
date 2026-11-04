@@ -66,6 +66,8 @@ export const resumeInputSchema = z.object({
   fileName: z.string().min(1).max(400),
   /** Plain text extracted in the browser; the server never sees the raw file. */
   text: z.string().max(400_000),
+  /** True when the text was read from a scanned image with OCR. */
+  ocr: z.boolean().optional(),
 });
 
 export type ResumeInput = z.infer<typeof resumeInputSchema>;
@@ -105,6 +107,8 @@ export interface CandidateResult {
   decision: Decision;
   reasons: string[];
   wordCount: number;
+  /** Text came from OCR, so names, numbers and skills may be misread. */
+  ocr: boolean;
 }
 
 export interface ShortlistResponse {
@@ -112,5 +116,7 @@ export interface ShortlistResponse {
   criteria: JobCriteria;
   generatedAt: string;
   totals: Record<Decision, number>;
+  /** Weights actually used: criteria the recruiter left unset are 0. */
+  activeWeights: Weights;
   results: CandidateResult[];
 }

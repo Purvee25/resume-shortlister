@@ -131,6 +131,45 @@ describe("scoreResumes", () => {
     expect(totals).toEqual({ shortlisted: 1, review: 1, rejected: 1 });
   });
 
+  it("reports the weights it actually used", () => {
+    const { activeWeights: used } = scoreResumes(
+      COMPANY,
+      criteria({ requiredSkills: ["Python"] }),
+      [{ fileName: "r.txt", text: "Python" }],
+      NOW,
+    );
+    expect(used).toEqual({
+      requiredSkills: DEFAULT_WEIGHTS.requiredSkills,
+      preferredSkills: 0,
+      experience: 0,
+      education: 0,
+      jdSimilarity: 0,
+    });
+  });
+
+  it("flags OCR'd resumes for verification", () => {
+    const { results } = scoreResumes(
+      COMPANY,
+      criteria({ requiredSkills: ["Python"] }),
+      [{ fileName: "scan.pdf", text: "Python", ocr: true }],
+      NOW,
+    );
+    expect(results[0].ocr).toBe(true);
+    expect(results[0].reasons.some((r) => /OCR/.test(r))).toBe(true);
+  });
+
+  it("does not call a short, text-based resume a scan", () => {
+    const result = scoreOne("Skills: Python", criteria({ requiredSkills: ["Python"] }));
+    expect(result.reasons.join(" ")).not.toMatch(/scan|OCR/i);
+    expect(result.reasons.join(" ")).toMatch(/Only \d+ words extracted/);
+  });
+
+  it("does not warn about length for a normal-length resume", () => {
+    const text = "Python engineer. ".repeat(40);
+    const result = scoreOne(text, criteria({ requiredSkills: ["Python"] }));
+    expect(result.reasons.join(" ")).not.toMatch(/words extracted/);
+  });
+
   it("is deterministic", () => {
     const c = criteria({ requiredSkills: ["Python"], description: "Python NLP engineer" });
     const a = scoreOne("Python NLP work", c);
